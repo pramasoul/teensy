@@ -32,6 +32,27 @@
 #define CPU_125kHz	0x07
 #define HEX(n) (((n) < 10) ? ((n) + '0') : ((n) + 'A' - 10))
 
+// Teensy 2.0: LED is active high
+#if defined(__AVR_ATmega32U4__) || defined(__AVR_AT90USB1286__)
+#define LED_ON		(PORTD |= (1<<6))
+#define LED_OFF		(PORTD &= ~(1<<6))
+#define LED_TOGGLE	(PORTD ^= (1<<6))
+#endif
+
+#define LED_CONFIG	(DDRD |= (1<<6))
+
+
+void blink_n_times(int v) {
+  LED_OFF;
+  v *= 2;
+  while (v-- > 0) {
+    _delay_ms(100);
+    LED_TOGGLE;
+  }
+  _delay_ms(100);
+}
+  
+
 int main(void)
 {
 	uint16_t val;
@@ -39,25 +60,35 @@ int main(void)
 
 	CPU_PRESCALE(CPU_125kHz);
 	_delay_ms(1);		// allow slow power supply startup
-	CPU_PRESCALE(CPU_16MHz); // set for 16 MHz clock
+		CPU_PRESCALE(CPU_16MHz); // set for 16 MHz clock
+	//	CPU_PRESCALE(0);
+
+	LED_CONFIG;
+	LED_OFF;
 
 	// initialize the USB, and then wait for the host
 	// to set configuration.  If the Teensy is powered
 	// without a PC connected to the USB port, this 
 	// will wait forever.
 	usb_init();
-	while (!usb_configured()) /* wait */ ;
+	//	while (!usb_configured()) /* wait */ ;
 	_delay_ms(1000);
 
 	adc_start(ADC_MUX_PIN_F1, ADC_REF_POWER);
+
 	while (1) {
-		// read the next ADC sample, and send it as ascii hex
-		val = adc_read();
-		buf[0] = HEX((val >> 8) & 15);
-		buf[1] = HEX((val >> 4) & 15);
-		buf[2] = HEX(val & 15);
-		buf[3] = ' ';
-		usb_serial_write((unsigned char *)buf, 4);
+	  // read the next ADC sample, and send it as ascii hex
+	  val = adc_read();
+	  //_delay_ms(500);//DEBUG
+	  LED_TOGGLE;
+	  buf[0] = HEX((val >> 8) & 15);
+	  buf[1] = HEX((val >> 4) & 15);
+	  buf[2] = HEX(val & 15);
+	  buf[3] = ' ';
+	  int v = usb_serial_write((unsigned char *)buf, 4);
+	  if (v) {
+	    blink_n_times(0-v);
+	  }
 	}
 }
 
