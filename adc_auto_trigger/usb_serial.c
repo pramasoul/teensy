@@ -494,7 +494,7 @@ int8_t usb_serial_write(const uint8_t *buffer, uint16_t size)
 	if (transmit_previous_timeout) {
 		if (!(UEINTX & (1<<RWAL))) {
 			SREG = intr_state;
-			return -1;
+			return -2;
 		}
 		transmit_previous_timeout = 0;
 	}
@@ -510,10 +510,10 @@ int8_t usb_serial_write(const uint8_t *buffer, uint16_t size)
 			// is not running an application that is listening
 			if (UDFNUML == timeout) {
 				transmit_previous_timeout = 1;
-				return -1;
+				return -3;
 			}
 			// has the USB gone offline?
-			if (!usb_configuration) return -1;
+			if (!usb_configuration) return -4;
 			// get ready to try checking again
 			intr_state = SREG;
 			cli();
@@ -678,7 +678,7 @@ int8_t usb_serial_set_control(uint8_t signals)
 		// TODO; should this try to abort the previously
 		// buffered message??
 		SREG = intr_state;
-		return -1;
+		return -2;
 	}
 	UEDATX = 0xA1;
 	UEDATX = 0x20;
