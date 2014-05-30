@@ -66,7 +66,7 @@ int main(void)
 	// blink morse code messages!
 	while (1) {
 		for (i=0; i<3; i++) {
-			morse_P(PSTR("HI"));
+			morse_P(PSTR("CQ "));
 			_delay_ms(1500);
 		}
 		morse_P(PSTR("DOES ANYBODY STILL KNOW MORSE CODE?"));
