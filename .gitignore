@@ -21,3 +21,13 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Derived documentation
+*.eep
+*.lss
+*.lst
+*.map
+*.sym
+
+# Distribution forms
+*.zip
