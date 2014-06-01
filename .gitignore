@@ -28,6 +28,7 @@
 *.lst
 *.map
 *.sym
+*.dep
 
 # Distribution forms
 *.zip
