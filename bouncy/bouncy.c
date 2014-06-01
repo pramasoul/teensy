@@ -61,21 +61,21 @@ void init_slug_driver(void) {
   DDRC = 0xC0;
 }
 
-void drive_slug_left(void) {
+void drive_coil_in(void) {
   PORTC |=  0x40;
   PORTC &= ~0x80;
 }
 
-void drive_slug_right(void) {
+void drive_coil_out(void) {
   PORTC |=  0x80;
   PORTC &= ~0x40;
 }
 
-void coast_slug(void) {
+void OC_coil(void) {
   PORTC |= 0xc0;
 }
 
-void brake_slug(void) {
+void CC_coil(void) {
   PORTC &= ~0xc0;
 }
 
@@ -114,6 +114,54 @@ int remote_signal(void) {
   return PIND & (1<<0) ? 0 : 1;
 }
 
+int drive_slug_left(void) {
+  drive_coil_out();
+  while (!read_slug_sensor(0) && !read_slug_sensor(3)) {
+    _delay_ms(1);
+  }
+  if (read_slug_sensor(0)) {
+    drive_coil_in();
+    while (!read_slug_sensor(1)) {
+      _delay_ms(1);
+    }
+    while (read_slug_sensor(1)) {
+      _delay_ms(1);
+    }
+    OC_coil();
+    while (!read_slug_sensor(2)) {
+      _delay_ms(1);
+    }
+    drive_coil_out();
+    return 1;
+      }else{
+    return 0;
+      }
+}
+
+int drive_slug_right(void) {
+  drive_coil_out();
+  while (!read_slug_sensor(0) && !read_slug_sensor(3)) {
+    _delay_ms(1);
+  }
+  if (read_slug_sensor(3)) {
+    drive_coil_in();
+    while (!read_slug_sensor(2)) {
+      _delay_ms(1);
+    }
+    while (read_slug_sensor(2)) {
+      _delay_ms(1);
+    }
+    OC_coil();
+    while (!read_slug_sensor(1)) {
+      _delay_ms(1);
+    }
+    drive_coil_out();
+    return 1;
+      }else{
+    return 0;
+      }
+}
+
 int main(void)
 {
   CPU_PRESCALE(CPU_125kHz);
@@ -141,8 +189,12 @@ int main(void)
   while (1) {
     if (remote_signal()) {
       LED_ON;
+      if (!drive_slug_left()){
+	drive_slug_right();
+      }
     } else {
       LED_OFF;
+      CC_coil();
     }
   }    
 
@@ -155,7 +207,7 @@ int main(void)
       drive_slug_right();
     }
     _delay_ms(200);
-    coast_slug();
+    OC_coil();
     for (int n=0; n<4; n++) {
       if (read_slug_sensor(n)) {
 	blink_n_times(n+1);
