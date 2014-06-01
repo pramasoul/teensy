@@ -54,15 +54,21 @@ void blink_n_times(int v) {
   _delay_ms(200);
 }
   
+void init_slug_driver(void) {
+  // Set up the H-bridge - a Vishay Si9986
+  // It's connected to PC6 and PC7
+  PORTC = 0;
+  DDRC = 0xC0;
+}
 
 void drive_slug_left(void) {
-  PORTC |=  0x80;
-  PORTC &= ~0x40;
+  PORTC |=  0x40;
+  PORTC &= ~0x80;
 }
 
 void drive_slug_right(void) {
-  PORTC |=  0x40;
-  PORTC &= ~0x80;
+  PORTC |=  0x80;
+  PORTC &= ~0x40;
 }
 
 void coast_slug(void) {
@@ -83,7 +89,7 @@ int read_slug_sensor(int n) {
   n &= 3;
   PORTB &= ~(1<<n);
   DDRB |= 1<<n;
-  _delay_us(1000);
+  _delay_us(200);
   v = PINB & (1<<7);
   DDRB &= ~(1<<n);
 #if 0
@@ -120,12 +126,21 @@ int main(void)
 	//	while (!usb_configured()) /* wait */ ;
 	_delay_ms(1000);
 
+	init_slug_driver();
 	init_slug_sensors();
+	
 
-	while (1) {
-	  for (int i=0; i<4; i++) {
-	    if (read_slug_sensor(i)) {
-	      blink_n_times(i+1);
+	for (int i=0; ; i++) {
+	  if (i&1) {
+	    drive_slug_left();
+	  } else {
+	    drive_slug_right();
+	  }
+	  _delay_ms(200);
+	  coast_slug();
+	  for (int n=0; n<4; n++) {
+	    if (read_slug_sensor(n)) {
+	      blink_n_times(n+1);
 	    }
 	  }
 	}
