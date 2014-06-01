@@ -107,81 +107,43 @@ int read_slug_sensor(int n) {
 
 int main(void)
 {
-	uint16_t val;
-	char buf[4];
+  CPU_PRESCALE(CPU_125kHz);
+  _delay_ms(1);		// allow slow power supply startup
+  CPU_PRESCALE(CPU_16MHz); // set for 16 MHz clock
+  //	CPU_PRESCALE(0);
 
-	CPU_PRESCALE(CPU_125kHz);
-	_delay_ms(1);		// allow slow power supply startup
-	CPU_PRESCALE(CPU_16MHz); // set for 16 MHz clock
-	//	CPU_PRESCALE(0);
+  LED_CONFIG;
+  LED_OFF;
 
-	LED_CONFIG;
-	LED_OFF;
+  // initialize the USB, and then wait for the host
+  // to set configuration.  If the Teensy is powered
+  // without a PC connected to the USB port, this 
+  // will wait forever.
+  usb_init();
+  //while (!usb_configured()) /* wait */ ;
+  //_delay_ms(1000);
 
-	// initialize the USB, and then wait for the host
-	// to set configuration.  If the Teensy is powered
-	// without a PC connected to the USB port, this 
-	// will wait forever.
-	usb_init();
-	//	while (!usb_configured()) /* wait */ ;
-	_delay_ms(1000);
 
-	init_slug_driver();
-	init_slug_sensors();
+  // Initialize
+  init_slug_driver();
+  init_slug_sensors();
 	
 
-	for (int i=0; ; i++) {
-	  if (i&1) {
-	    drive_slug_left();
-	  } else {
-	    drive_slug_right();
-	  }
-	  _delay_ms(200);
-	  coast_slug();
-	  for (int n=0; n<4; n++) {
-	    if (read_slug_sensor(n)) {
-	      blink_n_times(n+1);
-	    }
-	  }
-	}
-
-	// Set up the H-bridge - a Vishay Si9986
-	// It's connected to PC6 and PC7
-	PORTC = 0;
-	DDRC = 0xC0;
-
-	while (1) {
-	  LED_ON;
-	  PORTC = 0x80;
-	  _delay_ms(400);
-	  PORTC = 0xC0;
-	  LED_OFF;
-	  _delay_ms(1000);
-	  LED_ON;
-	  PORTC = 0x40;
-	  _delay_ms(400);
-	  PORTC = 0xC0;
-	  LED_OFF;
-	  _delay_ms(1000);
-	}
-
-
-	adc_start(ADC_MUX_PIN_F1, ADC_REF_POWER);
-
-	while (1) {
-	  // read the next ADC sample, and send it as ascii hex
-	  val = adc_read();
-	  //_delay_ms(500);//DEBUG
-	  LED_TOGGLE;
-	  buf[0] = HEX((val >> 8) & 15);
-	  buf[1] = HEX((val >> 4) & 15);
-	  buf[2] = HEX(val & 15);
-	  buf[3] = ' ';
-	  int v = usb_serial_write((unsigned char *)buf, 4);
-	  if (v) {
-	    blink_n_times(0-v);
-	  }
-	}
+  // A little test
+  for (int i=0; ; i++) {
+    if (i&1) {
+      drive_slug_left();
+    } else {
+      drive_slug_right();
+    }
+    _delay_ms(200);
+    coast_slug();
+    for (int n=0; n<4; n++) {
+      if (read_slug_sensor(n)) {
+	blink_n_times(n+1);
+      }
+    }
+  }
 }
 
 
