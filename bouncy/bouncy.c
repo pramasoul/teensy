@@ -105,6 +105,15 @@ int read_slug_sensor(int n) {
   return v ? 0 : 1;
 }
 
+void init_remote(void) {
+  DDRD &= ~(1<<0);
+  PORTD |= 1; // pullup
+}
+
+int remote_signal(void) {
+  return PIND & (1<<0) ? 0 : 1;
+}
+
 int main(void)
 {
   CPU_PRESCALE(CPU_125kHz);
@@ -127,7 +136,16 @@ int main(void)
   // Initialize
   init_slug_driver();
   init_slug_sensors();
+  init_remote();
 	
+  while (1) {
+    if (remote_signal()) {
+      LED_ON;
+    } else {
+      LED_OFF;
+    }
+  }    
+
 
   // A little test
   for (int i=0; ; i++) {
