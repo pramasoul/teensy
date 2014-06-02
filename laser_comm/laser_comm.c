@@ -79,6 +79,26 @@ int print_int_to_usb(int v) {
   return rv;
 }
 
+int print_int32_to_usb(int32_t v) {
+  char *p, buf[12];
+  int rv = 0;
+  if (v<0) {
+    putchar_to_usb('-');
+    v *= -1;
+  }
+  p = buf;
+  while (v >=10) {
+    *p++ = '0' + v%10;
+    v /= 10;
+  }
+  *p = '0' + v;
+  while (p >= buf) {
+    rv = putchar_to_usb(*p--);
+    if (rv) break;
+  }
+  return rv;
+}
+
 int main(void)
 {
 	uint16_t val;
@@ -127,32 +147,28 @@ int main(void)
 	  }
 	}
 
-	while (1) {
-	  int32_t in_phase, quadrature_phase, total;
-	  int v;
-	  in_phase = quadrature_phase = total = 0;
-	  for (int i=0; i<256; i++) {
-	    v = adc_read();
-	    total += v;
-	    in_phase += v;
-	    v = adc_read();
-	    total += v;
-	    quadrature_phase += v;
-	    v = adc_read();
-	    total += v;
-	    in_phase -= v;
-	    v = adc_read();
-	    total += v;
-	    quadrature_phase -= v;
+	if (0) {
+	  extern int32_t damp_toward_zero(int32_t v);
+	  int32_t t = -123456;
+	  for (int i=0; i<2048; i++) {
+	    putchar_to_usb('\r');
+	    putchar_to_usb('\n');
+	    print_int32_to_usb(t);
+	    _delay_ms(30);
+	    t = damp_toward_zero(t);
 	  }
+	} 
+
+	while (1) {
+	  extern int32_t in_phase, quadrature;
+	  int v;
 	  LED_TOGGLE;
+	  _delay_ms(100);
 	  putchar_to_usb('\r');
 	  putchar_to_usb('\n');
-	  if ((v = print_int_to_usb(total)) != 0
+	  if ((v = print_int_to_usb(in_phase)) != 0
 	      || (v = putchar_to_usb(' ')) != 0
-	      || (v = print_int_to_usb(in_phase)) != 0
-	      || (v = putchar_to_usb(' ')) != 0
-	      || (v = print_int_to_usb(quadrature_phase)) != 0) {
+	      || (v = print_int_to_usb(quadrature)) != 0) {
 	    blink_n_times(0-v);
 	  }
 	}
