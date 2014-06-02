@@ -46,13 +46,40 @@ int16_t adc_read(void)
 	return val;
 }
 
+
+static uint8_t prescaler;
+static int32_t in_phase, quadrature;
+
+
+int32_t damp_toward_zero(int32_t v) {
+  int32_t rv;
+  rv = ((v<<8) - v + ((v<0 ? -1 : 1) << 7)) >> 8;
+  return rv;
+}
+
 ISR(ADC_vect)
 {
 	uint8_t h;
 	int16_t val;
-
+	int32_t round_add;
 	val = ADC;			// grab new reading from ADC
-	PORTD ^= (1<<5); // DEBUG: TEST
+	if (++prescaler & 1) {
+	  PORTD ^= (1<<5); // Toggle the output if we're the transmitter
+	}
+	switch (prescaler & 3) {
+	case 0:
+	  in_phase = damp_toward_zero(in_phase) + val;
+	  break;
+	case 1:
+	  quadrature = damp_toward_zero(quadrature) + val;
+	  break;
+	case 2:
+	  in_phase = damp_toward_zero(in_phase) - val;
+	  break;
+	case 3:
+	  quadrature = damp_toward_zero(quadrature) - val;
+	  break;
+	}
 	h = head + 1;
 	if (h >= BUFSIZE) h = 0;
 	if (h != tail) {		// if the buffer isn't full
