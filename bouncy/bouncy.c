@@ -29,12 +29,14 @@
 #include <util/delay.h>
 #include "usb_serial.h"
 #include "sampling.h"
+#include "bouncy.h"
 
 #define CPU_PRESCALE(n)	(CLKPR = 0x80, CLKPR = (n))
 #define CPU_16MHz	0x00
 #define CPU_125kHz	0x07
 #define HEX(n) (((n) < 10) ? ((n) + '0') : ((n) + 'A' - 10))
 
+#if 0
 // Teensy 2.0: LED is active high
 #if defined(__AVR_ATmega32U4__) || defined(__AVR_AT90USB1286__)
 #define LED_ON		(PORTD |= (1<<6))
@@ -43,7 +45,7 @@
 #endif
 
 #define LED_CONFIG	(DDRD |= (1<<6))
-
+#endif
 
 void blink_n_times(int v) {
   LED_OFF;
@@ -121,12 +123,21 @@ int read_slug_sensor(int n) {
 }
 
 void init_remote(void) {
+#ifdef _USE_PUSHBUTTON
   DDRD &= ~(1<<0);
   PORTD |= 1; // pullup
+#else
+  adc_start(ADC_MUX_PIN_D4, ADC_REF_POWER);
+#endif
 }
 
 int remote_signal(void) {
+#ifdef _USE_PUSHBUTTON
   return PIND & (1<<0) ? 0 : 1;
+#else
+  return abs(in_phase) + abs(quadrature) > 200;
+  return signal_present;
+#endif
 }
 
 int drive_slug_left(int t) {
@@ -247,7 +258,7 @@ int main(void)
 
   while (1) {
     if (remote_signal()) {
-      LED_ON;
+      //LED_ON;
       win = win - 1;
       if (win > 0) {
 	if (!drive_slug_left(500)){
@@ -262,7 +273,7 @@ int main(void)
 	level = level * 1.5;
       }
     } else {
-      LED_OFF;
+      //LED_OFF;
       if (win < level) {
 	win = win + (level / 10);
       }

@@ -7,6 +7,16 @@
 
 #define BUFSIZE 50
 
+// Teensy 2.0: LED is active high
+#if defined(__AVR_ATmega32U4__) || defined(__AVR_AT90USB1286__)
+#define LED_ON		(PORTD |= (1<<6))
+#define LED_OFF		(PORTD &= ~(1<<6))
+#define LED_TOGGLE	(PORTD ^= (1<<6))
+#endif
+
+#define LED_CONFIG	(DDRD |= (1<<6))
+
+
 static volatile uint8_t head, tail;
 static volatile int16_t buffer[BUFSIZE];
 
@@ -46,12 +56,49 @@ int16_t adc_read(void)
 	return val;
 }
 
+
+static uint16_t prescaler;
+int32_t in_phase, quadrature;
+uint8_t signal_present;
+static int32_t in_phase_acc, quadrature_acc;
+
+int32_t damp_toward_zero(int32_t v) {
+  int32_t rv;
+  //rv = ((v<<8) - v + ((v<0 ? -1 : 1) << 7)) >> 8;
+  rv = ((v<<8) - v) >> 8;
+  return rv;
+}
+
 ISR(ADC_vect)
 {
 	uint8_t h;
 	int16_t val;
-
 	val = ADC;			// grab new reading from ADC
+	prescaler = (prescaler + 1) & 0x3ff;
+	if (prescaler == 0) {
+	  in_phase = in_phase_acc;
+	  quadrature = quadrature_acc;
+	  in_phase_acc = quadrature_acc = 0;
+	  signal_present = abs(in_phase) + abs(quadrature) > 200;
+	  if (signal_present) LED_ON; else LED_OFF;
+	}
+	if (prescaler & 1) {
+	  PORTD ^= (1<<5); // Toggle the output if we're the transmitter
+	}
+	switch (prescaler & 3) {
+	case 0:
+	  in_phase_acc += val;
+	  break;
+	case 1:
+	  quadrature_acc += val;
+	  break;
+	case 2:
+	  in_phase_acc -= val;
+	  break;
+	case 3:
+	  quadrature_acc -= val;
+	  break;
+	}
 	h = head + 1;
 	if (h >= BUFSIZE) h = 0;
 	if (h != tail) {		// if the buffer isn't full

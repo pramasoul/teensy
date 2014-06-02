@@ -2,10 +2,14 @@
 #define _analog_h_included__
 
 #include <stdint.h>
+#include <stdlib.h>
 
 void adc_start(uint8_t mux, uint8_t aref);
 uint8_t adc_available(void);
 int16_t adc_read(void);
+
+extern int32_t in_phase, quadrature;
+extern uint8_t signal_present;
 
 #define ADC_MUX_PIN_F0    0x00
 #define ADC_MUX_PIN_F1    0x01
