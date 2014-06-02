@@ -24,6 +24,9 @@
 #include <avr/io.h>
 //#include <avr/pgmspace.h>
 #include <util/delay.h>
+
+#include <stdlib.h>
+
 #include "usb_serial.h"
 #include "sampling.h"
 
@@ -52,6 +55,29 @@ void blink_n_times(int v) {
   _delay_ms(100);
 }
   
+int putchar_to_usb(char c) {
+  return usb_serial_write((unsigned char *) &c, 1);
+}
+
+int print_int_to_usb(int v) {
+  char *p, buf[12];
+  int rv = 0;
+  if (v<0) {
+    putchar_to_usb('-');
+    v *= -1;
+  }
+  p = buf;
+  while (v >=10) {
+    *p++ = '0' + v%10;
+    v /= 10;
+  }
+  *p = '0' + v;
+  while (p >= buf) {
+    rv = putchar_to_usb(*p--);
+    if (rv) break;
+  }
+  return rv;
+}
 
 int main(void)
 {
@@ -74,10 +100,16 @@ int main(void)
 	//	while (!usb_configured()) /* wait */ ;
 	_delay_ms(1000);
 
+	DDRD |= (1<<5);
+
 	adc_start(ADC_MUX_PIN_D4, ADC_REF_POWER);
 	//adc_start(ADC_MUX_PIN_D4, ADC_REF_INTERNAL);
 
-	DDRD |= (1<<5);
+	while (0) {
+	  print_int_to_usb(rand());
+	  putchar_to_usb('\r');
+	  putchar_to_usb('\n');
+	}
 
 	while (0) {
 	  // read the next ADC sample, and send it as ascii hex
@@ -96,26 +128,31 @@ int main(void)
 	}
 
 	while (1) {
-	  long diff = 0;
+	  int32_t in_phase, quadrature_phase, total;
+	  int v;
+	  in_phase = quadrature_phase = total = 0;
 	  for (int i=0; i<256; i++) {
-	    //PORTD ^= (1<<5);
-	    diff += adc_read();
-	    //PORTD ^= (1<<5);
-	    diff -= adc_read();
+	    v = adc_read();
+	    total += v;
+	    in_phase += v;
+	    v = adc_read();
+	    total += v;
+	    quadrature_phase += v;
+	    v = adc_read();
+	    total += v;
+	    in_phase -= v;
+	    v = adc_read();
+	    total += v;
+	    quadrature_phase -= v;
 	  }
 	  LED_TOGGLE;
-	  buf[0] = diff < 0 ? '-' : ' ';
-	  buf[1] = HEX((diff >> 28) & 15);
-	  buf[2] = HEX((diff >> 24) & 15);
-	  buf[3] = HEX((diff >> 20) & 15);
-	  buf[4] = HEX((diff >> 16) & 15);
-	  buf[5] = HEX((diff >> 12) & 15);
-	  buf[6] = HEX((diff >> 8) & 15);
-	  buf[7] = HEX((diff >> 4) & 15);
-	  buf[8] = HEX(diff & 15);
-	  buf[9] = ' ';
-	  int v = usb_serial_write((unsigned char *)buf, 10);
-	  if (v) {
+	  putchar_to_usb('\r');
+	  putchar_to_usb('\n');
+	  if ((v = print_int_to_usb(total)) != 0
+	      || (v = putchar_to_usb(' ')) != 0
+	      || (v = print_int_to_usb(in_phase)) != 0
+	      || (v = putchar_to_usb(' ')) != 0
+	      || (v = print_int_to_usb(quadrature_phase)) != 0) {
 	    blink_n_times(0-v);
 	  }
 	}
