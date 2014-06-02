@@ -24,6 +24,7 @@
  */
 
 #include <avr/io.h>
+#include <stdlib.h>
 //#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include "usb_serial.h"
@@ -54,6 +55,20 @@ void blink_n_times(int v) {
   _delay_ms(200);
 }
   
+void delay_us(int delay) {
+  if (delay < 1) return;
+  if (delay & (1<<0)) _delay_us(1<<0);
+  if (delay & (1<<1)) _delay_us(1<<1);
+  if (delay & (1<<2)) _delay_us(1<<2);
+  if (delay & (1<<3)) _delay_us(1<<3);
+  if (delay & (1<<4)) _delay_us(1<<4);
+  if (delay & (1<<5)) _delay_us(1<<5);
+  if (delay & (1<<6)) _delay_us(1<<6);
+  if (delay & (1<<7)) _delay_us(1<<7);
+  for (int n=delay>>8; n; n--) _delay_us(1<<8);
+}
+
+
 void init_slug_driver(void) {
   // Set up the H-bridge - a Vishay Si9986
   // It's connected to PC6 and PC7
@@ -61,21 +76,21 @@ void init_slug_driver(void) {
   DDRC = 0xC0;
 }
 
-void drive_slug_left(void) {
+void drive_coil_in(void) {
   PORTC |=  0x40;
   PORTC &= ~0x80;
 }
 
-void drive_slug_right(void) {
+void drive_coil_out(void) {
   PORTC |=  0x80;
   PORTC &= ~0x40;
 }
 
-void coast_slug(void) {
+void OC_coil(void) {
   PORTC |= 0xc0;
 }
 
-void brake_slug(void) {
+void CC_coil(void) {
   PORTC &= ~0xc0;
 }
 
@@ -114,6 +129,95 @@ int remote_signal(void) {
   return PIND & (1<<0) ? 0 : 1;
 }
 
+int drive_slug_left(int t) {
+  drive_coil_out();
+  while ((!read_slug_sensor(0) && !read_slug_sensor(3)) && 0 < t) {
+    _delay_ms(1);
+    t = t - 1;
+  }
+  if (read_slug_sensor(0)) {
+    drive_coil_in();
+    while (!read_slug_sensor(1) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    while (read_slug_sensor(1) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    OC_coil();
+    while (!read_slug_sensor(2) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    drive_coil_out();
+    while (!read_slug_sensor(3) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    CC_coil();
+    return 1;
+      }else{
+    while (!read_slug_sensor(3) && 0 < t) {
+      _delay_ms(1); 
+      t = t - 1;
+    }
+    CC_coil();
+    return 0;
+      }
+}
+
+int drive_slug_right(int t) {
+  drive_coil_out();
+  while ((!read_slug_sensor(0) && !read_slug_sensor(3)) && 0 < t) {
+    _delay_ms(1);
+    t = t - 1;
+  }
+  if (read_slug_sensor(3)) {
+    drive_coil_in();
+    while (!read_slug_sensor(2) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    while (read_slug_sensor(2) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    OC_coil();
+    while (!read_slug_sensor(1) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    drive_coil_out();
+    while (!read_slug_sensor(0) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    CC_coil();
+    return 1;
+      }else{
+    while (!read_slug_sensor(0) && 0 < t) {
+      _delay_ms(1);
+      t = t - 1;
+    }
+    CC_coil();
+    return 0;
+      }
+}
+
+void oscillate(float F,int N) {
+  int period = (500000 / F);
+  while (0 < N) {
+    drive_coil_out();
+    delay_us(period);
+    drive_coil_in();
+    delay_us(period);
+    N = N - 1;
+  }
+  CC_coil();
+}
+
+
 int main(void)
 {
   CPU_PRESCALE(CPU_125kHz);
@@ -137,12 +241,35 @@ int main(void)
   init_slug_driver();
   init_slug_sensors();
   init_remote();
-	
+  
+  int win = 1;
+  int level = 15;
+
   while (1) {
     if (remote_signal()) {
       LED_ON;
+      win = win - 1;
+      if (win > 0) {
+	if (!drive_slug_left(500)){
+	  drive_slug_right(500);
+	}
+      }else{
+	while (win < level) {
+	  oscillate(440,110);
+	  _delay_ms(750);
+	  win = win + (level / 3);
+	}
+	level = level * 1.5;
+      }
     } else {
       LED_OFF;
+      if (win < level) {
+	win = win + (level / 10);
+      }
+      // oscillate(440,10);
+      if (((rand()%31) == 5) && 0) {
+	oscillate((rand()%18 + 4),(rand()%5 + 2));
+      }
     }
   }    
 
@@ -150,12 +277,12 @@ int main(void)
   // A little test
   for (int i=0; ; i++) {
     if (i&1) {
-      drive_slug_left();
+      drive_slug_left(500);
     } else {
-      drive_slug_right();
+      drive_slug_right(500);
     }
     _delay_ms(200);
-    coast_slug();
+    OC_coil();
     for (int n=0; n<4; n++) {
       if (read_slug_sensor(n)) {
 	blink_n_times(n+1);
