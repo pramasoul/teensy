@@ -36,16 +36,6 @@
 #define CPU_125kHz	0x07
 #define HEX(n) (((n) < 10) ? ((n) + '0') : ((n) + 'A' - 10))
 
-#if 0
-// Teensy 2.0: LED is active high
-#if defined(__AVR_ATmega32U4__) || defined(__AVR_AT90USB1286__)
-#define LED_ON		(PORTD |= (1<<6))
-#define LED_OFF		(PORTD &= ~(1<<6))
-#define LED_TOGGLE	(PORTD ^= (1<<6))
-#endif
-
-#define LED_CONFIG	(DDRD |= (1<<6))
-#endif
 
 void blink_n_times(int v) {
   LED_OFF;
@@ -238,6 +228,9 @@ int main(void)
 
   LED_CONFIG;
   LED_OFF;
+  LASER_CONFIG;
+  LASER_OFF;
+  PUSHBUTTON_CONFIG;
 
   // initialize the USB, and then wait for the host
   // to set configuration.  If the Teensy is powered
@@ -253,6 +246,8 @@ int main(void)
   init_slug_sensors();
   init_remote();
   
+  //while (1) if (PUSHBUTTON_IS_PUSHED) LED_ON; else LED_OFF;
+
   int win = 1;
   int level = 15;
 

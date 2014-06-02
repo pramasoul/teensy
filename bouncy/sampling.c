@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <stdint.h>
 #include "sampling.h"
+#include "bouncy.h"
 
 #define BUFSIZE 50
 
@@ -82,8 +83,10 @@ ISR(ADC_vect)
 	  signal_present = abs(in_phase) + abs(quadrature) > 200;
 	  if (signal_present) LED_ON; else LED_OFF;
 	}
-	if (prescaler & 1) {
-	  PORTD ^= (1<<5); // Toggle the output if we're the transmitter
+	if (prescaler&2 && PUSHBUTTON_IS_PUSHED) {
+	  LASER_ON;
+	} else {
+	  LASER_OFF;
 	}
 	switch (prescaler & 3) {
 	case 0:
