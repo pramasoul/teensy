@@ -52,6 +52,7 @@ ISR(ADC_vect)
 	int16_t val;
 
 	val = ADC;			// grab new reading from ADC
+	PORTD ^= (1<<5); // DEBUG: TEST
 	h = head + 1;
 	if (h >= BUFSIZE) h = 0;
 	if (h != tail) {		// if the buffer isn't full

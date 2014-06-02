@@ -1,4 +1,4 @@
-/* Simple example for Teensy USB Development Board
+/* Hacking around with laser comm
  * http://www.pjrc.com/teensy/
  * Copyright (c) 2008 PJRC.COM, LLC
  * 
@@ -56,7 +56,7 @@ void blink_n_times(int v) {
 int main(void)
 {
 	uint16_t val;
-	char buf[4];
+	char buf[16];
 
 	CPU_PRESCALE(CPU_125kHz);
 	_delay_ms(1);		// allow slow power supply startup
@@ -74,18 +74,47 @@ int main(void)
 	//	while (!usb_configured()) /* wait */ ;
 	_delay_ms(1000);
 
-	adc_start(ADC_MUX_PIN_F1, ADC_REF_POWER);
+	adc_start(ADC_MUX_PIN_D4, ADC_REF_POWER);
+	//adc_start(ADC_MUX_PIN_D4, ADC_REF_INTERNAL);
 
-	while (1) {
+	DDRD |= (1<<5);
+
+	while (0) {
 	  // read the next ADC sample, and send it as ascii hex
 	  val = adc_read();
 	  //_delay_ms(500);//DEBUG
+	  PORTD ^= (1<<5);
 	  LED_TOGGLE;
 	  buf[0] = HEX((val >> 8) & 15);
 	  buf[1] = HEX((val >> 4) & 15);
 	  buf[2] = HEX(val & 15);
 	  buf[3] = ' ';
 	  int v = usb_serial_write((unsigned char *)buf, 4);
+	  if (v) {
+	    blink_n_times(0-v);
+	  }
+	}
+
+	while (1) {
+	  long diff = 0;
+	  for (int i=0; i<256; i++) {
+	    //PORTD ^= (1<<5);
+	    diff += adc_read();
+	    //PORTD ^= (1<<5);
+	    diff -= adc_read();
+	  }
+	  LED_TOGGLE;
+	  buf[0] = diff < 0 ? '-' : ' ';
+	  buf[1] = HEX((diff >> 28) & 15);
+	  buf[2] = HEX((diff >> 24) & 15);
+	  buf[3] = HEX((diff >> 20) & 15);
+	  buf[4] = HEX((diff >> 16) & 15);
+	  buf[5] = HEX((diff >> 12) & 15);
+	  buf[6] = HEX((diff >> 8) & 15);
+	  buf[7] = HEX((diff >> 4) & 15);
+	  buf[8] = HEX(diff & 15);
+	  buf[9] = ' ';
+	  int v = usb_serial_write((unsigned char *)buf, 10);
 	  if (v) {
 	    blink_n_times(0-v);
 	  }

@@ -41,7 +41,7 @@
 
 
 # Target file name (without extension).
-TARGET = example
+TARGET = laser_comm
 
 
 # List C source files here. (C dependencies are automatically generated.)
